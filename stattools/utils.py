@@ -7,8 +7,7 @@ from sklearn.metrics import confusion_matrix
 import pandas as pd
 
 from packaging import version
-from typing import List, Tuple, Dict, Union, Optional, Any, Union
-from pandas.api.typing import FrameOrSeries
+from typing import List, Tuple, Dict, Union, Optional, Any, Union, TypeVar
 try:
     from typing import Literal
 except:
@@ -32,6 +31,8 @@ else:
         Literal["float64"],
         # Add more types or string literals as needed
     ]
+
+FrameOrSeries = TypeVar("FrameOrSeries", pd.DataFrame, pd.Series)
 
 
 def calculate_conflation(p1: float, p2: float) -> float:
@@ -81,27 +82,35 @@ def get_confusion_matrix(y_true: ArrayLike,
     # check if the predicted labels are probabilities or binary labels
     if isinstance(y_pred[0], float):
         predicted_labels = np.where(y_pred >= threshold, 'fit', 'non-fit')
+        predicted_labels = predicted_labels.astype('<U12')
         if inconclusive_mask is not None:
             predicted_labels[inconclusive_mask] = 'inconclusive'
         y_pred = predicted_labels
     conf_mat = confusion_matrix(y_true, y_pred, labels=[
-                                'non-fit', 'inconclusive', 'fit'])
+                                'fit', 'inconclusive', 'non-fit'])
     return conf_mat
 
 
 def evalute_cross_val(df: FrameOrSeries, 
-                      inconclusive_mask: Optional[ArrayLike] = None, 
-                      threshold: float = 0.5) -> Dict[str, Dict[str, float]]:
+                      cross_val_col: str='cross_val_idx',
+                      threshold: float = 0.5,
+                      include_inconclusive: bool=True,
+                      decimals: int=3, 
+                      interval: List[float]= None) -> Dict[str, Dict[str, float]]:
     """Evaluates the cross validation results from the dataframe
 
     Parameters
     ----------
     df : FrameOrSeries
         Pandas dataframe with the cross validation results
-    inconclusive_mask : Optional[ArrayLike], optional
-        a numpy mask that corresponds to inconvlusive results, by default None
+    cross_val_col : str, optional
+        The name of the column containing the cross validation index, by default 'cross_val_idx'
     threshold : float, optional
         Threshold for probability, by default 0.5
+    include_inconclusive : bool, optional
+        Whether to include inconclusive instances in the evaluation, by default True
+    decimals : int, optional
+        Number of decimal places to round the results to, by default 3, only used if include_inconclusive is True
 
     Returns
     -------
@@ -110,21 +119,28 @@ def evalute_cross_val(df: FrameOrSeries,
         names and the values being the mean and standard deviation
     """
     metrics = []
-    for cross_val in df.cross_val_idx.unique():
-        idx = df.cross_val_idx == cross_val
+    for cross_val in df[cross_val_col].unique():
+        idx = df[cross_val_col] == cross_val
         for c in df.columns:
-            if c == 'cross_val_idx':
+            if c == cross_val_col:
                 continue
             if c == 'ground_truth':
                 y_true = df[c][idx].values
             else:
-                y_pred = df[c][idx].values
+                y_pred = df[c][idx].astype(float).values
+        if include_inconclusive:
+            if interval is not None:
+                inconclusive_mask = (y_pred > interval[0]) & (y_pred < interval[1])
+            else:
+                inconclusive_mask = y_pred.round(decimals=decimals) == 0.500
+        else:
+            inconclusive_mask = None
         conf_mat = get_confusion_matrix(
             y_true, y_pred, inconclusive_mask, threshold)
         metrics.append(calculate_metrics(conf_mat))
     ret = {}
     keys = list(metrics[0].keys())
-    if inconclusive_mask is None:
+    if not include_inconclusive:
         keys.remove('INR')
         keys.remove('IPR')
     for mtr in keys:
@@ -155,14 +171,15 @@ def calculate_metrics(conf_mat: ArrayLike) -> Dict:
         The metrics as a dictionary
     """
     conf_mat = np.array(conf_mat)
-    assert conf_mat.shape == (3, 3), "confusion matrix must be 3x3"
-    TPR = conf_mat[2, 2]/(conf_mat[2, 2] + conf_mat[2, 0])
-    TNR = conf_mat[0, 0]/(conf_mat[0, 0] + conf_mat[0, 2])
-    FNR = conf_mat[2, 0]/(conf_mat[2, 0] + conf_mat[2, 2])
-    FPR = conf_mat[0, 2]/(conf_mat[0, 2] + conf_mat[0, 0])
-    INR = conf_mat[0, 1]/(conf_mat[0, 0] + conf_mat[0, 1] + conf_mat[0, 2])
-    IPR = conf_mat[2, 1]/(conf_mat[0, 2] + conf_mat[0, 1] + conf_mat[2, 2])
-    ACC = (conf_mat[2, 2]+conf_mat[0, 0])/conf_mat.sum()
+    if conf_mat.shape == (3, 3):
+        P, _, N = np.sum(conf_mat, axis=1)
+        TPR = conf_mat[0, 0]/P
+        TNR = conf_mat[2, 2]/N
+        FPR = conf_mat[2, 0]/N
+        FNR = conf_mat[0, 2]/P
+        INR = conf_mat[2, 1]/N
+        IPR = conf_mat[0, 1]/P
+        ACC = (conf_mat[0, 0] + conf_mat[2, 2])/(P + N)
     return dict(TPR=TPR, TNR=TNR,
                 FNR=FNR, FPR=FPR,
                 INR=INR, IPR=IPR,
