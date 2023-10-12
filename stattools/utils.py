@@ -82,7 +82,7 @@ def get_confusion_matrix(y_true: ArrayLike,
     assert np.shape(y_true) == np.shape(y_pred), "true and predicted labels must be the same shape"
     # check if the predicted labels are probabilities or binary labels
     assert isinstance(y_pred[0], float), "predicted labels must be probabilities"
-    assert np.mean(y_pred) > 1 and threshold < 1, "The threshold is set to 0.5, but the predicted labels are not probabilities between 0 and 1."
+    # assert np.mean(y_pred) > 1 and threshold < 1, "The threshold is set to 0.5, but the predicted labels are not probabilities between 0 and 1."
     predicted_labels = np.where(y_pred >= threshold, 'fit', 'non-fit')
     predicted_labels = predicted_labels.astype('<U12')
     if inconclusive_mask is not None:
@@ -206,7 +206,7 @@ def calculate_metrics(conf_mat: ArrayLike) -> Dict:
         FNR = conf_mat[0, 1]/P
         ACC = (conf_mat[0, 0] + conf_mat[1, 1])/(P + N)
         ret = dict(TPR=TPR, TNR=TNR,
-                FPR=FPR, FNR=FNR)
+                FPR=FPR, FNR=FNR, ACC=ACC)
         
     return ret
 
