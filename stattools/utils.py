@@ -76,21 +76,23 @@ def get_confusion_matrix(y_true: ArrayLike,
     ArrayLike
         the confusion matrix as a 3x3 numpy array
     """
+    
     y_pred = np.array(y_pred)
     y_true = np.array(y_true)
     assert np.shape(y_true) == np.shape(y_pred), "true and predicted labels must be the same shape"
     # check if the predicted labels are probabilities or binary labels
-    if isinstance(y_pred[0], float):
-        if np.mean(y_pred) > 1 and threshold < 1:
-            print("WARNING: The threshold is set to 0.5, bu the predicted labels are not probabilities between 0 and 1.")
-        predicted_labels = np.where(y_pred >= threshold, 'fit', 'non-fit')
+    assert isinstance(y_pred[0], float), "predicted labels must be probabilities"
+    assert np.mean(y_pred) > 1 and threshold < 1, "The threshold is set to 0.5, but the predicted labels are not probabilities between 0 and 1."
+    predicted_labels = np.where(y_pred >= threshold, 'fit', 'non-fit')
+    predicted_labels = predicted_labels.astype('<U12')
+    if inconclusive_mask is not None:
+        predicted_labels[inconclusive_mask] = 'inconclusive'
+        conf_mat = confusion_matrix(y_true, predicted_labels, labels=[
+                            'fit', 'inconclusive', 'non-fit'])
+    else:
+        conf_mat = confusion_matrix(y_true, predicted_labels, labels=[
+                            'fit', 'non-fit'])
         
-        predicted_labels = predicted_labels.astype('<U12')
-        if inconclusive_mask is not None:
-            predicted_labels[inconclusive_mask] = 'inconclusive'
-        y_pred = predicted_labels
-    conf_mat = confusion_matrix(y_true, y_pred, labels=[
-                                'fit', 'inconclusive', 'non-fit'])
     return conf_mat
 
 
@@ -183,7 +185,18 @@ def calculate_metrics(conf_mat: ArrayLike) -> Dict:
         INR = conf_mat[2, 1]/N
         IPR = conf_mat[0, 1]/P
         ACC = (conf_mat[0, 0] + conf_mat[2, 2])/(P + N)
-    return dict(TPR=TPR, TNR=TNR,
+        ret = dict(TPR=TPR, TNR=TNR,
                 FPR=FPR, FNR=FNR, 
                 IPR=IPR, INR=INR, 
                 ACC=ACC)
+    elif conf_mat.shape == (2, 2):
+        P, N = np.sum(conf_mat, axis=1)
+        TPR = conf_mat[0, 0]/P
+        TNR = conf_mat[1, 1]/N
+        FPR = conf_mat[1, 0]/N
+        FNR = conf_mat[0, 1]/P
+        ret = dict(TPR=TPR, TNR=TNR,
+                FPR=FPR, FNR=FNR)
+        
+    return ret
+
