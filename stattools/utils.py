@@ -103,7 +103,7 @@ def evalute_cross_val(df: FrameOrSeries,
                       decimals: int=3, 
                       interval: List[float]= None) -> Dict[str, Dict[str, float]]:
     """Evaluates the cross validation results from the dataframe
-
+    TODO: Update the code to be consistent with sklearn's convention for confusion matrix.
     Parameters
     ----------
     df : FrameOrSeries
@@ -122,6 +122,9 @@ def evalute_cross_val(df: FrameOrSeries,
     Dict[str, Dict[str, float]]
         Metrics as a dictionary of dictionaries with the keys being the metric 
         names and the values being the mean and standard deviation
+    Note:
+        The confusion matrix used in this function does not follow the sklearn convention.
+        Make sure to understand the layout of the confusion matrix used here.
     """
     metrics = []
     for cross_val in df[cross_val_col].unique():
@@ -165,6 +168,8 @@ def calculate_metrics(conf_mat: ArrayLike) -> Dict:
     6. Inconclusive Positive Rate (IPR)
     7. Accuracy (ACC)
 
+    TODO: Update the code to be consistent with sklearn's convention for confusion matrix.
+    
     Parameters
     ----------
     conf_mat : np.ndarray
@@ -174,6 +179,10 @@ def calculate_metrics(conf_mat: ArrayLike) -> Dict:
     -------
     Dict
         The metrics as a dictionary
+    Note:
+        The confusion matrix used in this function does not follow the sklearn convention.
+        Make sure to understand the layout of the confusion matrix used here.
+    
     """
     conf_mat = np.array(conf_mat)
     if conf_mat.shape == (3, 3):
@@ -195,6 +204,7 @@ def calculate_metrics(conf_mat: ArrayLike) -> Dict:
         TNR = conf_mat[1, 1]/N
         FPR = conf_mat[1, 0]/N
         FNR = conf_mat[0, 1]/P
+        ACC = (conf_mat[0, 0] + conf_mat[1, 1])/(P + N)
         ret = dict(TPR=TPR, TNR=TNR,
                 FPR=FPR, FNR=FNR)
         
