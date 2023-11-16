@@ -4,8 +4,9 @@
 from sklearn.metrics import confusion_matrix
 import numpy as np
 from sklearn.metrics import confusion_matrix
+from matplotlib import pyplot as plt
 import pandas as pd
-
+from pathlib import Path
 from packaging import version
 from typing import List, Tuple, Dict, Union, Optional, Any, Union, TypeVar
 try:
@@ -156,6 +157,48 @@ def evalute_cross_val(df: FrameOrSeries,
                     'std': np.std([m[mtr] for m in metrics])}
     return ret
 
+def plot_confusion_matrix(conf_mat: Union[np.ndarray, list], title: str = 'Confusion Matrix', savefig: Union[str, Path] = None):
+    """
+    Plot a confusion matrix with a custom title.
+
+    This function plots a confusion matrix to visually evaluate the performance of a classification model.
+    A confusion matrix is a table used to describe the performance of a classification model on a set of test data for which the true values are known.
+
+    Parameters:
+    conf_mat (numpy.ndarray or list): A confusion matrix, which is a square array-like structure 
+                                      representing the counts of true and predicted labels.
+    title (str): Title of the confusion matrix plot.
+
+    Returns:
+    matplotlib.figure.Figure: A matplotlib figure object with the plotted confusion matrix.
+    """
+    fig, ax = plt.subplots()
+    cax = ax.matshow(conf_mat)
+    plt.colorbar(cax)
+
+    # Setting labels for axes and title
+    ax.set_xlabel('Predicted labels')
+    ax.set_ylabel('True labels')
+    ax.set_title(title)
+
+    # Set tick labels
+    tick_labels = ['True', 'Inconclusive', 'False']
+    ax.set_xticks(np.arange(len(tick_labels)))
+    ax.set_yticks(np.arange(len(tick_labels)))
+    ax.set_xticklabels(tick_labels)
+    ax.set_yticklabels(tick_labels)
+
+    # Turn off minor ticks
+    ax.tick_params(axis='both', which='minor', bottom=False, left=False, right=False, top=False)
+    ax.grid(False)
+    # Add grid and number annotations
+    for (i, j), val in np.ndenumerate(conf_mat):
+        ax.text(j, i, f'{val}', ha='center', va='center', color='black')
+
+    if savefig:
+        fig.savefig(savefig)
+    return fig
+
 
 def calculate_metrics(conf_mat: ArrayLike) -> Dict:
     """Calculates the metrics from the confusion matrix
@@ -209,4 +252,3 @@ def calculate_metrics(conf_mat: ArrayLike) -> Dict:
                 FPR=FPR, FNR=FNR, ACC=ACC)
         
     return ret
-
