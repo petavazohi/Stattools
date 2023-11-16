@@ -175,13 +175,13 @@ def calculate_metrics(conf_mat: ArrayLike) -> Dict:
     """
     conf_mat = np.array(conf_mat)
     if conf_mat.shape == (3, 3):
-        P, _, N = np.sum(conf_mat, axis=1)
-        TPR = conf_mat[0, 0]/P
-        TNR = conf_mat[2, 2]/N
-        FPR = conf_mat[2, 0]/N
-        FNR = conf_mat[0, 2]/P
-        INR = conf_mat[2, 1]/N
-        IPR = conf_mat[0, 1]/P
+        N, _, P = np.sum(conf_mat, axis=1)
+        TPR = conf_mat[2, 2]/P
+        TNR = conf_mat[0, 0]/N
+        FPR = conf_mat[0, 2]/N
+        FNR = conf_mat[2, 0]/P
+        INR = conf_mat[0, 1]/N
+        IPR = conf_mat[2, 1]/P
         ACC = (conf_mat[0, 0] + conf_mat[2, 2])/(P + N)
     return dict(TPR=TPR, TNR=TNR,
                 FPR=FPR, FNR=FNR, 
